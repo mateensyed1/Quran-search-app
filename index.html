@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,19 +58,9 @@
   <div id="results"></div>
 
   <script>
-    function normalizeArabic(text) {
-      return text
-        .replace(/[\u064B-\u065F\u0670]/g, '') // Remove diacritics
-        .replace(/ة/g, 'ه') // Normalize ta marbuta
-        .replace(/ى/g, 'ي') // Normalize alif maqsoora
-        .replace(/أ|إ|آ/g, 'ا') // Normalize different alifs
-        .trim();
-    }
-
     async function searchQuran() {
-      const queryRaw = document.getElementById("searchQuery").value.trim();
+      const query = document.getElementById("searchQuery").value.trim();
       const lang = document.getElementById("language").value;
-      const query = lang === 'ar' ? normalizeArabic(queryRaw) : queryRaw.toLowerCase();
       const resultsDiv = document.getElementById("results");
       resultsDiv.innerHTML = "";
 
@@ -80,10 +71,11 @@
 
       try {
         if (lang === "ar") {
+          // Pull Arabic Quran directly, loop through all verses and filter locally
           const res = await fetch("https://api.alquran.cloud/v1/quran/quran-uthmani");
           const data = await res.json();
           const verses = data.data.surahs.flatMap(surah => surah.ayahs);
-          const filtered = verses.filter(ayah => normalizeArabic(ayah.text).includes(query));
+          const filtered = verses.filter(ayah => ayah.text.includes(query));
 
           if (filtered.length === 0) {
             resultsDiv.innerHTML = "<p>No results found.</p>";
@@ -100,6 +92,7 @@
             resultsDiv.innerHTML += block;
           });
         } else {
+          // English search logic remains unchanged
           const response = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(query)}/all/en`);
           const data = await response.json();
 
