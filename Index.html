@@ -1,0 +1,102 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quran Ayah Search</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 1em;
+      background: #f4f4f4;
+    }
+    h1 {
+      font-size: 22px;
+      text-align: center;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 18px;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 18px;
+      margin-bottom: 20px;
+      cursor: pointer;
+    }
+    .ayah {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .arabic {
+      font-size: 20px;
+      direction: rtl;
+      text-align: right;
+    }
+    .english {
+      margin-top: 5px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Quran Ayah Search</h1>
+  <input type="text" id="searchQuery" placeholder="Enter word or phrase (e.g. mercy or رحمة)" />
+  <button onclick="searchQuran()">Search</button>
+
+  <div id="results"></div>
+
+  <script>
+    async function searchQuran() {
+      const query = document.getElementById("searchQuery").value.trim();
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "";
+
+      if (!query) {
+        alert("Please enter a word or phrase to search.");
+        return;
+      }
+
+      try {
+        const response = await fetch(`https://api.quran.com:443/v4/search?q=${encodeURIComponent(query)}&size=10&page=1`);
+        const data = await response.json();
+        const matches = data.matches;
+
+        if (matches.length === 0) {
+          resultsDiv.innerHTML = "<p>No results found.</p>";
+          return;
+        }
+
+        for (const match of matches) {
+          const arabicAyah = match.text;
+          const surah = match.surah_name;
+          const ayahNum = match.verse_number;
+
+          const engRes = await fetch(`https://api.quran.com:443/v4/verses/by_key/${match.verse_key}?language=en&words=false&translations=131`);
+          const engData = await engRes.json();
+          const english = engData.verse.translations[0]?.text || "";
+
+          const block = `
+            <div class="ayah">
+              <div class="arabic">${arabicAyah}</div>
+              <div class="english">${english} <br><small>(${surah}:${ayahNum})</small></div>
+            </div>
+          `;
+
+          resultsDiv.innerHTML += block;
+        }
+      } catch (error) {
+        console.error(error);
+        resultsDiv.innerHTML = "<p>Error retrieving results.</p>";
+      }
+    }
+  </script>
+</body>
+</html>
