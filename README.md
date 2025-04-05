@@ -1,2 +1,2 @@
-# Quran-search-app
+# index.html
 Ayah search reference 
