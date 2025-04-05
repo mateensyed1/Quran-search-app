@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -65,24 +64,23 @@
       }
 
       try {
-        const response = await fetch(`https://api.quran.com:443/v4/search?q=${encodeURIComponent(query)}&size=5&page=1&language=en`);
+        const response = await fetch("https://api.alquran.cloud/v1/search/" + encodeURIComponent(query) + "/all/en");
         const data = await response.json();
-        const matches = data.matches;
 
-        if (matches.length === 0) {
+        if (!data || !data.data || !data.data.matches || data.data.matches.length === 0) {
           resultsDiv.innerHTML = "<p>No results found.</p>";
           return;
         }
 
-        for (const match of matches) {
+        for (const match of data.data.matches.slice(0, 10)) {
+          const surah = match.surah.englishName;
+          const ayahNum = match.numberInSurah;
           const english = match.text;
-          const surah = match.surah_name;
-          const ayahNum = match.verse_number;
 
-          // Fetch Arabic text
-          const arabicRes = await fetch(`https://api.quran.com:443/v4/verses/by_key/${match.verse_key}?language=ar&words=false`);
+          // Fetch Arabic Ayah separately
+          const arabicRes = await fetch(`https://api.alquran.cloud/v1/ayah/${match.number}`);
           const arabicData = await arabicRes.json();
-          const arabic = arabicData.verse.text_uthmani;
+          const arabic = arabicData.data.text;
 
           const block = `
             <div class="ayah">
@@ -95,7 +93,7 @@
         }
       } catch (error) {
         console.error(error);
-        resultsDiv.innerHTML = "<p>Error retrieving results.</p>";
+        resultsDiv.innerHTML = "<p>Error retrieving results. Please try again later.</p>";
       }
     }
   </script>
