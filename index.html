@@ -48,6 +48,12 @@
       margin-bottom: 10px;
       color: #444;
     }
+    #showMoreBtn {
+      display: none;
+      margin: 10px auto;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
@@ -61,8 +67,12 @@
 
   <div id="status"></div>
   <div id="results"></div>
+  <button id="showMoreBtn" onclick="showMoreResults()">Show More Results</button>
 
   <script>
+    let fullResults = [];
+    let resultIndex = 0;
+
     function normalizeArabic(text) {
       return text
         .replace(/[\u064B-\u065F\u0670]/g, '')
@@ -72,15 +82,40 @@
         .trim();
     }
 
+    function displayResults(batch = 10) {
+      const resultsDiv = document.getElementById("results");
+      const end = Math.min(resultIndex + batch, fullResults.length);
+      for (let i = resultIndex; i < end; i++) {
+        const match = fullResults[i];
+        const block = `
+          <div class="ayah">
+            <div class="arabic">${match.text}</div>
+            <div class="english"><small>(${match.surah}:${match.num})</small></div>
+          </div>
+        `;
+        resultsDiv.innerHTML += block;
+      }
+      resultIndex = end;
+      document.getElementById("showMoreBtn").style.display = resultIndex < fullResults.length ? "block" : "none";
+    }
+
+    function showMoreResults() {
+      displayResults();
+    }
+
     async function searchQuran() {
       const queryRaw = document.getElementById("searchQuery").value.trim();
       const lang = document.getElementById("language").value;
       const query = lang === 'ar' ? normalizeArabic(queryRaw) : queryRaw.toLowerCase();
       const resultsDiv = document.getElementById("results");
       const statusDiv = document.getElementById("status");
+      const showMoreBtn = document.getElementById("showMoreBtn");
 
       resultsDiv.innerHTML = "";
       statusDiv.innerText = "Searching...";
+      fullResults = [];
+      resultIndex = 0;
+      showMoreBtn.style.display = "none";
 
       if (!query) {
         alert("Please enter a word or phrase to search.");
@@ -89,7 +124,6 @@
 
       try {
         if (lang === "ar") {
-          let found = [];
           for (let i = 1; i <= 114; i++) {
             statusDiv.innerText = `Checking Surah ${i}...`;
             const res = await fetch(`https://api.alquran.cloud/v1/surah/${i}`);
@@ -98,32 +132,20 @@
             const matches = ayahs.filter(ayah => normalizeArabic(ayah.text).includes(query));
 
             matches.forEach(ayah => {
-              found.push({
+              fullResults.push({
                 text: ayah.text,
                 surah: data.data.englishName,
                 num: ayah.numberInSurah
               });
             });
-
-            if (found.length >= 10) break;
           }
 
           statusDiv.innerText = "";
-          if (found.length === 0) {
+          if (fullResults.length === 0) {
             resultsDiv.innerHTML = "<p>No results found.</p>";
             return;
           }
-
-          found.slice(0, 10).forEach(match => {
-            const block = `
-              <div class="ayah">
-                <div class="arabic">${match.text}</div>
-                <div class="english"><small>(${match.surah}:${match.num})</small></div>
-              </div>
-            `;
-            resultsDiv.innerHTML += block;
-          });
-
+          displayResults();
         } else {
           const response = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(query)}/all/en`);
           const data = await response.json();
@@ -133,24 +155,33 @@
             return;
           }
 
-          for (const match of data.data.matches.slice(0, 10)) {
-            const surah = match.surah.englishName;
-            const ayahNum = match.numberInSurah;
-            const text = match.text;
+          fullResults = await Promise.all(
+            data.data.matches.map(async (match) => {
+              const arabicRes = await fetch(`https://api.alquran.cloud/v1/ayah/${match.number}`);
+              const arabicData = await arabicRes.json();
+              return {
+                text: arabicData.data.text,
+                surah: match.surah.englishName,
+                num: match.numberInSurah,
+                english: match.text
+              };
+            })
+          );
 
-            const arabicRes = await fetch(`https://api.alquran.cloud/v1/ayah/${match.number}`);
-            const arabicData = await arabicRes.json();
-            const arabic = arabicData.data.text;
-
-            const block = `
-              <div class="ayah">
-                <div class="arabic">${arabic}</div>
-                <div class="english">${text} <br><small>(${surah}:${ayahNum})</small></div>
-              </div>
-            `;
-
-            resultsDiv.innerHTML += block;
-          }
+          resultsDiv.innerHTML = "";
+          fullResults.forEach((match, index) => {
+            if (index < 10) {
+              const block = `
+                <div class="ayah">
+                  <div class="arabic">${match.text}</div>
+                  <div class="english">${match.english}<br><small>(${match.surah}:${match.num})</small></div>
+                </div>
+              `;
+              resultsDiv.innerHTML += block;
+            }
+          });
+          resultIndex = 10;
+          showMoreBtn.style.display = fullResults.length > 10 ? "block" : "none";
         }
       } catch (error) {
         console.error(error);
