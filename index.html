@@ -75,10 +75,12 @@
 
     function normalizeArabic(text) {
       return text
-        .replace(/[\u064B-\u065F\u0670]/g, '')
+        .replace(/[\u064B-\u065F\u0670]/g, '') // Remove harakat
+        .replace(/[ـ]/g, '')                     // Remove tatweel
         .replace(/ة/g, 'ه')
         .replace(/ى/g, 'ي')
-        .replace(/[أإآ]/g, 'ا')
+        .replace(/[أإآٱ]/g, 'ا')                 // Normalize various alifs
+        .replace(/\s+/g, '')                    // Remove all spaces
         .trim();
     }
 
