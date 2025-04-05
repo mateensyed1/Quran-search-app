@@ -70,34 +70,55 @@
       }
 
       try {
-        const response = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(query)}/all/${lang}`);
-        const data = await response.json();
+        if (lang === "ar") {
+          // Pull Arabic Quran directly, loop through all verses and filter locally
+          const res = await fetch("https://api.alquran.cloud/v1/quran/quran-uthmani");
+          const data = await res.json();
+          const verses = data.data.surahs.flatMap(surah => surah.ayahs);
+          const filtered = verses.filter(ayah => ayah.text.includes(query));
 
-        if (!data || !data.data || !data.data.matches || data.data.matches.length === 0) {
-          resultsDiv.innerHTML = "<p>No results found.</p>";
-          return;
-        }
-
-        for (const match of data.data.matches.slice(0, 10)) {
-          const surah = match.surah.englishName;
-          const ayahNum = match.numberInSurah;
-          const text = match.text;
-
-          let arabic = "";
-          if (lang === "en") {
-            const arabicRes = await fetch(`https://api.alquran.cloud/v1/ayah/${match.number}`);
-            const arabicData = await arabicRes.json();
-            arabic = arabicData.data.text;
+          if (filtered.length === 0) {
+            resultsDiv.innerHTML = "<p>No results found.</p>";
+            return;
           }
 
-          const block = `
-            <div class="ayah">
-              ${lang === 'en' ? `<div class="arabic">${arabic}</div><div class="english">${text}` : `<div class="arabic">${text}` }
-              <br><small>(${surah}:${ayahNum})</small></div>
-            </div>
-          `;
+          filtered.slice(0, 10).forEach(ayah => {
+            const block = `
+              <div class="ayah">
+                <div class="arabic">${ayah.text}</div>
+                <div class="english"><small>(${ayah.surah.englishName}:${ayah.numberInSurah})</small></div>
+              </div>
+            `;
+            resultsDiv.innerHTML += block;
+          });
+        } else {
+          // English search logic remains unchanged
+          const response = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(query)}/all/en`);
+          const data = await response.json();
 
-          resultsDiv.innerHTML += block;
+          if (!data || !data.data || !data.data.matches || data.data.matches.length === 0) {
+            resultsDiv.innerHTML = "<p>No results found.</p>";
+            return;
+          }
+
+          for (const match of data.data.matches.slice(0, 10)) {
+            const surah = match.surah.englishName;
+            const ayahNum = match.numberInSurah;
+            const text = match.text;
+
+            const arabicRes = await fetch(`https://api.alquran.cloud/v1/ayah/${match.number}`);
+            const arabicData = await arabicRes.json();
+            const arabic = arabicData.data.text;
+
+            const block = `
+              <div class="ayah">
+                <div class="arabic">${arabic}</div>
+                <div class="english">${text} <br><small>(${surah}:${ayahNum})</small></div>
+              </div>
+            `;
+
+            resultsDiv.innerHTML += block;
+          }
         }
       } catch (error) {
         console.error(error);
