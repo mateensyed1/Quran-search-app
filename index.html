@@ -14,7 +14,7 @@
       font-size: 22px;
       text-align: center;
     }
-    input[type="text"] {
+    input[type="text"], select {
       width: 100%;
       padding: 10px;
       font-size: 18px;
@@ -47,7 +47,11 @@
 </head>
 <body>
   <h1>Quran Ayah Search</h1>
-  <input type="text" id="searchQuery" placeholder="Enter word or phrase (e.g. mercy)" />
+  <select id="language">
+    <option value="en">English</option>
+    <option value="ar">Arabic</option>
+  </select>
+  <input type="text" id="searchQuery" placeholder="Enter word or phrase (e.g. mercy or رحمة)" />
   <button onclick="searchQuran()">Search</button>
 
   <div id="results"></div>
@@ -55,6 +59,7 @@
   <script>
     async function searchQuran() {
       const query = document.getElementById("searchQuery").value.trim();
+      const lang = document.getElementById("language").value;
       const resultsDiv = document.getElementById("results");
       resultsDiv.innerHTML = "";
 
@@ -64,7 +69,7 @@
       }
 
       try {
-        const response = await fetch("https://api.alquran.cloud/v1/search/" + encodeURIComponent(query) + "/all/en");
+        const response = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(query)}/all/${lang}`);
         const data = await response.json();
 
         if (!data || !data.data || !data.data.matches || data.data.matches.length === 0) {
@@ -75,17 +80,19 @@
         for (const match of data.data.matches.slice(0, 10)) {
           const surah = match.surah.englishName;
           const ayahNum = match.numberInSurah;
-          const english = match.text;
+          const text = match.text;
 
-          // Fetch Arabic Ayah separately
-          const arabicRes = await fetch(`https://api.alquran.cloud/v1/ayah/${match.number}`);
-          const arabicData = await arabicRes.json();
-          const arabic = arabicData.data.text;
+          let arabic = "";
+          if (lang === "en") {
+            const arabicRes = await fetch(`https://api.alquran.cloud/v1/ayah/${match.number}`);
+            const arabicData = await arabicRes.json();
+            arabic = arabicData.data.text;
+          }
 
           const block = `
             <div class="ayah">
-              <div class="arabic">${arabic}</div>
-              <div class="english">${english} <br><small>(${surah}:${ayahNum})</small></div>
+              ${lang === 'en' ? `<div class="arabic">${arabic}</div><div class="english">${text}` : `<div class="arabic">${text}`}
+              <br><small>(${surah}:${ayahNum})</small></div>
             </div>
           `;
 
