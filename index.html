@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -58,11 +57,21 @@
   <div id="results"></div>
 
   <script>
+    function normalizeArabic(text) {
+      return text
+        .replace(/[\u064B-\u065F\u0670]/g, '')
+        .replace(/ة/g, 'ه')
+        .replace(/ى/g, 'ي')
+        .replace(/[أإآ]/g, 'ا')
+        .trim();
+    }
+
     async function searchQuran() {
-      const query = document.getElementById("searchQuery").value.trim();
+      const queryRaw = document.getElementById("searchQuery").value.trim();
       const lang = document.getElementById("language").value;
+      const query = lang === 'ar' ? normalizeArabic(queryRaw) : queryRaw.toLowerCase();
       const resultsDiv = document.getElementById("results");
-      resultsDiv.innerHTML = "";
+      resultsDiv.innerHTML = "Searching...";
 
       if (!query) {
         alert("Please enter a word or phrase to search.");
@@ -71,28 +80,41 @@
 
       try {
         if (lang === "ar") {
-          // Pull Arabic Quran directly, loop through all verses and filter locally
-          const res = await fetch("https://api.alquran.cloud/v1/quran/quran-uthmani");
-          const data = await res.json();
-          const verses = data.data.surahs.flatMap(surah => surah.ayahs);
-          const filtered = verses.filter(ayah => ayah.text.includes(query));
+          let found = [];
+          for (let i = 1; i <= 114; i++) {
+            const res = await fetch(`https://api.alquran.cloud/v1/surah/${i}`);
+            const data = await res.json();
+            const ayahs = data.data.ayahs;
+            const matches = ayahs.filter(ayah => normalizeArabic(ayah.text).includes(query));
 
-          if (filtered.length === 0) {
+            matches.forEach(ayah => {
+              found.push({
+                text: ayah.text,
+                surah: data.data.englishName,
+                num: ayah.numberInSurah
+              });
+            });
+
+            if (found.length >= 10) break;
+          }
+
+          resultsDiv.innerHTML = "";
+          if (found.length === 0) {
             resultsDiv.innerHTML = "<p>No results found.</p>";
             return;
           }
 
-          filtered.slice(0, 10).forEach(ayah => {
+          found.slice(0, 10).forEach(match => {
             const block = `
               <div class="ayah">
-                <div class="arabic">${ayah.text}</div>
-                <div class="english"><small>(${ayah.surah.englishName}:${ayah.numberInSurah})</small></div>
+                <div class="arabic">${match.text}</div>
+                <div class="english"><small>(${match.surah}:${match.num})</small></div>
               </div>
             `;
             resultsDiv.innerHTML += block;
           });
+
         } else {
-          // English search logic remains unchanged
           const response = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(query)}/all/en`);
           const data = await response.json();
 
