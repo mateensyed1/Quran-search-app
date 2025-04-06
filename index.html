@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quran Ayah Search</title>
+  <title>Quran Ayah Search (Debug)</title>
   <style>
     body {
       font-family: sans-serif;
@@ -43,10 +43,16 @@
       margin-top: 5px;
       font-size: 16px;
     }
+    #status {
+      margin-top: 1em;
+      font-size: 16px;
+      color: #444;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-  <h1>Quran Ayah Search</h1>
+  <h1>Quran Ayah Search (Debug Mode)</h1>
   <select id="langSelect">
     <option value="ar">Arabic</option>
     <option value="en">English</option>
@@ -54,6 +60,7 @@
   <input type="text" id="searchQuery" placeholder="Enter word or phrase" />
   <button onclick="searchQuran()">Search</button>
 
+  <div id="status"></div>
   <div id="results"></div>
 
   <script>
@@ -61,22 +68,28 @@
       const query = document.getElementById("searchQuery").value.trim();
       const lang = document.getElementById("langSelect").value;
       const resultsDiv = document.getElementById("results");
+      const statusDiv = document.getElementById("status");
       resultsDiv.innerHTML = "";
+      statusDiv.innerHTML = "Searching...";
 
       if (!query) {
-        alert("Please enter a word or phrase to search.");
+        statusDiv.innerHTML = "Please enter a word or phrase to search.";
         return;
       }
 
       try {
         const response = await fetch(`https://api.quran.com:443/v4/search?q=${encodeURIComponent(query)}&size=10&page=1&language=${lang}`);
+        if (!response.ok) throw new Error("API error: " + response.status);
+
         const data = await response.json();
         const matches = data.matches;
 
         if (matches.length === 0) {
-          resultsDiv.innerHTML = "<p>No results found.</p>";
+          statusDiv.innerHTML = "No results found.";
           return;
         }
+
+        statusDiv.innerHTML = `Found ${matches.length} result(s).`;
 
         for (const match of matches) {
           const arabicAyah = match.text;
@@ -98,7 +111,7 @@
         }
       } catch (error) {
         console.error(error);
-        resultsDiv.innerHTML = "<p>Error retrieving results.</p>";
+        statusDiv.innerHTML = `<span style='color:red;'>Error: ${error.message}</span>`;
       }
     }
   </script>
